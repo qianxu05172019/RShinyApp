@@ -4,6 +4,9 @@ library(DT)
 library(ggplot2)
 library(dplyr)
 
+# Set maximum file upload size to 5GB
+options(shiny.maxRequestSize = 5000*1024^2)
+
 # UI definition
 ui <- fluidPage(
   titlePanel("Seurat Analysis App"),
@@ -12,6 +15,13 @@ ui <- fluidPage(
     sidebarPanel(
       fileInput("rds_file", "Upload Seurat object (.rds file)",
                 accept = ".rds"),
+      
+      # Plot size controls
+      h4("Plot Size Controls"),
+      sliderInput("plot_width", "Plot Width (pixels):", 
+                 min = 400, max = 2000, value = 800),
+      sliderInput("plot_height", "Plot Height (pixels):", 
+                 min = 400, max = 2000, value = 600),
       
       # Quality control parameters
       conditionalPanel(
@@ -54,17 +64,17 @@ ui <- fluidPage(
     mainPanel(
       tabsetPanel(
         tabPanel("QC Plots",
-                 plotOutput("qc_violin"),
-                 plotOutput("qc_scatter")),
+                 plotOutput("qc_violin", height = "auto"),
+                 plotOutput("qc_scatter", height = "auto")),
         tabPanel("Feature Plots",
                  selectInput("feature_to_plot", "Select feature:", ""),
-                 plotOutput("feature_plot")),
+                 plotOutput("feature_plot", height = "auto")),
         tabPanel("Dimension Reduction",
                  selectInput("dim_red_type", "Plot type:",
                            choices = c("UMAP", "tSNE", "PCA")),
-                 plotOutput("dim_red_plot")),
+                 plotOutput("dim_red_plot", height = "auto")),
         tabPanel("Clustering Results",
-                 plotOutput("cluster_plot")),
+                 plotOutput("cluster_plot", height = "auto")),
         tabPanel("Differential Expression",
                  selectInput("cluster_de", "Select cluster:", ""),
                  DT::dataTableOutput("de_table"))
@@ -171,21 +181,24 @@ server <- function(input, output, session) {
     VlnPlot(vals$seurat_obj,
             features = c("nFeature_RNA", "nCount_RNA", "percent.mt"),
             ncol = 3)
-  })
+  }, width = function() input$plot_width,
+     height = function() input$plot_height)
   
   output$qc_scatter <- renderPlot({
     req(vals$seurat_obj)
     FeatureScatter(vals$seurat_obj,
                    feature1 = "nCount_RNA",
                    feature2 = "nFeature_RNA")
-  })
+  }, width = function() input$plot_width,
+     height = function() input$plot_height)
   
   # Feature plot
   output$feature_plot <- renderPlot({
     req(vals$seurat_obj, input$feature_to_plot)
     FeaturePlot(vals$seurat_obj,
                 features = input$feature_to_plot)
-  })
+  }, width = function() input$plot_width,
+     height = function() input$plot_height)
   
   # Dimension reduction plot
   output$dim_red_plot <- renderPlot({
@@ -198,13 +211,15 @@ server <- function(input, output, session) {
     } else {
       DimPlot(vals$seurat_obj, reduction = "pca")
     }
-  })
+  }, width = function() input$plot_width,
+     height = function() input$plot_height)
   
   # Clustering plot
   output$cluster_plot <- renderPlot({
     req(vals$seurat_obj, vals$cluster_done)
     DimPlot(vals$seurat_obj, reduction = "umap", group.by = "seurat_clusters")
-  })
+  }, width = function() input$plot_width,
+     height = function() input$plot_height)
   
   # Differential expression table
   output$de_table <- DT::renderDataTable({
